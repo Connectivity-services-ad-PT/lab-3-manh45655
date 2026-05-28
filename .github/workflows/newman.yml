@@ -3,13 +3,10 @@ name: Newman Contract Tests
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   newman:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,19 +17,25 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install -g @stoplight/prism-cli
 
       - name: Start Prism mock servers
         run: |
-          npm install -g @stoplight/prism-cli
-          # IoT chạy cổng 4010
-          nohup prism mock contracts/iot-ingestion.openapi.yaml -p 4010 --host 0.0.0.0 > prism-iot.log 2>&1 &
-          # AI Vision chạy cổng 4011
-          nohup prism mock contracts/ai-vision.openapi.yaml -p 4011 --host 0.0.0.0 > prism-vision.log 2>&1 &
+          # Chạy IoT Mock ở cổng 4010
+          nohup prism mock contracts/iot-ingestion.openapi.yaml -p 4010 > prism-iot.log 2>&1 &
+          # Chạy AI Vision Mock ở cổng 4011
+          nohup prism mock contracts/ai-vision.openapi.yaml -p 4011 > prism-vision.log 2>&1 &
+          # Đợi server khởi động hoàn tất
           sleep 10
 
-      - name: Run Newman contract tests
-        run: npm run test:mock
+      - name: Run Newman tests
+        run: |
+          newman run postman/collections/FIT4110_lab03_iot_ingestion.postman_collection.json \
+          -e postman/environments/FIT4110_lab03_mock.postman_environment.json \
+          --reporters cli,junit \
+          --reporter-junit-export reports/newman-report-mock.xml
 
       - name: Upload reports
         if: always()
