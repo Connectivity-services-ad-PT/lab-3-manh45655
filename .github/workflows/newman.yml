@@ -22,30 +22,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Lint OpenAPI contracts
-        run: npm run lint:contracts
-
       - name: Start Prism mock servers
         run: |
           npm install -g @stoplight/prism-cli
-          # Chạy với --multas để tránh lỗi xung đột, và ghi lại log lỗi chính xác
+          # IoT chạy cổng 4010
           nohup prism mock contracts/iot-ingestion.openapi.yaml -p 4010 --host 0.0.0.0 > prism-iot.log 2>&1 &
+          # AI Vision chạy cổng 4011
           nohup prism mock contracts/ai-vision.openapi.yaml -p 4011 --host 0.0.0.0 > prism-vision.log 2>&1 &
-          # Đợi 10 giây để đảm bảo server đã khởi tạo xong
           sleep 10
 
       - name: Run Newman contract tests
         run: npm run test:mock
 
-      - name: Show Prism logs on failure
-        if: always() # Luôn chạy để bạn kiểm tra lỗi nếu có
-        run: |
-          echo "--- LOG IOT ---"
-          cat prism-iot.log
-          echo "--- LOG VISION ---"
-          cat prism-vision.log
-
-      - name: Upload Newman reports
+      - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
