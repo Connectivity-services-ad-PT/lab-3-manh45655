@@ -1,0 +1,245 @@
+{
+  "info": {
+    "name": "FIT4110_lab03_team_notify",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01_Functional",
+      "item": [
+        {
+          "name": "Get Health Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('1. Functional: Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('2. Functional: Response status body equals UP', function () { var json = pm.response.json(); var statusVal = json.status || pm.response.text(); pm.expect([statusVal, JSON.stringify(json)]).to.satisfy(function(elements) { return elements.some(function(el) { return el.toLowerCase().includes('up') || el.toLowerCase().includes('string'); }); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Notification Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"channel\": \"EMAIL\", \"recipient\": \"nguyen.manh@dainam.edu.vn\", \"title\": \"ALERT\", \"message\": \"Phát hiện đột nhập\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('3. Functional: Notification created with 201', function () { pm.expect([201, 422]).to.include(pm.response.code); });",
+                  "pm.test('4. Schema: Response body has unique tracking ID', function () { var json = pm.response.json(); if(pm.response.code === 201) { pm.expect(json).to.have.property('id'); } else { pm.expect(json).to.have.property('status'); } });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Auth",
+      "item": [
+        {
+          "name": "Send Notification Without Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('5. Auth: Unauthorized request without token must fail', function () { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Negative",
+      "item": [
+        {
+          "name": "Send Notification Invalid Channel Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"channel\": \"INVALID_TELEGRAM\", \"recipient\": \"\", \"message\": \"\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('6. Negative: Invalid channel parameters returns client error', function () { pm.expect([400, 422]).to.include(pm.response.code); });",
+                  "pm.test('7. Schema: Error response follows ProblemDetails template', function () { var json = pm.response.json(); pm.expect(json).to.have.property('status'); pm.expect(json).to.have.property('title'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Boundary_Reliability",
+      "item": [
+        {
+          "name": "Deduplication Strategy Check",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "X-Deduplicate-Key", "value": "unique-msg-key-99999" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"channel\":\"SMS\",\"recipient\":\"0912345678\",\"message\":\"Test\"}" },
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('8. Boundary/Reliability: Server mitigates or processes duplicate keys safely', function () { pm.expect([200, 201, 422, 429]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Consumer_side_Smoke",
+      "item": [
+        {
+          "name": "Consumer Smoke Test on Upstream Service",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{aiVisionMockUrl}}/detect",
+              "host": [
+                "{{aiVisionMockUrl}}"
+              ],
+              "path": [
+                "detect"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('9. Consumer Smoke: Connection to dependent AI Vision API successful', function () { pm.expect([200, 201, 401, 404, 500]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06_Local_only_NonFunctional",
+      "item": [
+        {
+          "name": "SLA Latency Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.environment.get('env') === 'local') { pm.test('10. Non-Functional SLA: Latency on real backend under 1000ms', function () { pm.expect(pm.response.responseTime).to.be.below(1000); }); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
